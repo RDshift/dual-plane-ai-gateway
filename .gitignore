@@ -1,19 +1,29 @@
+# Python & Bytecode
 __pycache__/
 *.py[cod]
 *$py.class
+*.egg-info/
+.pytest_cache/
+
+# Environments & Local Secrets
 .venv/
 venv/
 env/
 .env
+.DS_Store
+
+# Databases
 *.db
 *.db-shm
 *.db-wal
-.pytest_cache/
+
+# Build & Distribution
 dist/
 build/
-*.egg-info/
+
+# Test Reports & Local Toolchains
 artifacts/test_reports/*.json
 artifacts/test_reports/*.xml
 artifacts/test_reports/*.log
 !artifacts/test_reports/.gitkeep
-!docs/.gitkeep
+.toolchain/

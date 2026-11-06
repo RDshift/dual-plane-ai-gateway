@@ -9,8 +9,8 @@ from gateway.core.config import settings
 from gateway.core.errors import build_gateway_error
 from gateway.core.lifecycle import lifecycle_manager
 from gateway.core.logging import configure_stderr_logging
-from gateway.mcp_plane.router import mcp_router
-from gateway.model_plane.router import model_router
+from gateway.mcp_plane.mcp_router import mcp_router
+from gateway.model_plane.model_router import model_router
 
 logger = configure_stderr_logging(level=settings.log_level, logger_name="quilr.main")
 
