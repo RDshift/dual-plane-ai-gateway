@@ -46,6 +46,26 @@ class GatewaySettings(BaseSettings):
         default="servers/customer_service_mcp.py",
         alias="MCP_SERVER_SCRIPT",
     )
+    primary_model_base_url: str = Field(
+        default="https://api.primary-llm.internal/v1",
+        alias="PRIMARY_MODEL_BASE_URL",
+    )
+    primary_model_api_key: str = Field(
+        default="sk-primary-placeholder",
+        alias="PRIMARY_MODEL_API_KEY",
+    )
+    secondary_model_base_url: str = Field(
+        default="https://api.secondary-llm.internal/v1",
+        alias="SECONDARY_MODEL_BASE_URL",
+    )
+    secondary_model_api_key: str = Field(
+        default="sk-secondary-placeholder",
+        alias="SECONDARY_MODEL_API_KEY",
+    )
+    default_model_name: str = Field(
+        default="quilr-enterprise-default",
+        alias="DEFAULT_MODEL_NAME",
+    )
     token_registry: dict[str, str] = Field(
         default_factory=lambda: {
             "tok_admin_live_9x8a7b": "admin",
