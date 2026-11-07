@@ -28,22 +28,25 @@ class LifecycleManager:
             return
         self._is_shutting_down = True
         logger.info("Executing deterministic substrate shutdown hooks.")
-        for hook in reversed(self._shutdown_hooks):
-            try:
-                await hook()
-            except Exception as exc:
-                logger.error(f"Shutdown hook error: {exc}")
+        try:
+            for hook in reversed(self._shutdown_hooks):
+                try:
+                    await hook()
+                except Exception as exc:
+                    logger.error(f"Shutdown hook error: {exc}")
+        finally:
+            self._is_shutting_down = False
 
     def install_signal_handlers(self, loop: asyncio.AbstractEventLoop) -> None:
         """Bind POSIX SIGINT, SIGTERM, and SIGHUP signals."""
         signals = [signal.SIGINT, signal.SIGTERM]
         if hasattr(signal, "SIGHUP"):
-            signals.append( getattr(signal, "SIGHUP") )
+            signals.append(getattr(signal, "SIGHUP"))
         for sig in signals:
             try:
                 loop.add_signal_handler(
                     sig,
-                    lambda s=sig: asyncio.create_task(self._handle_signal(s)),
+                    lambda s=sig: asyncio.ensure_future(self._handle_signal(s)),
                 )
             except (NotImplementedError, RuntimeError):
                 pass

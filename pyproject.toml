@@ -25,12 +25,18 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["gateway*", "core*"] # Adjust based on your package structure if needed
+include = ["gateway*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-p no:cacheprovider"
 filterwarnings = [
+    "ignore::DeprecationWarning:starlette",
     "ignore::DeprecationWarning:starlette.*",
+    "ignore::DeprecationWarning:httpx",
     "ignore::DeprecationWarning:httpx.*",
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+    "ignore:The 'app' shortcut is now deprecated",
 ]

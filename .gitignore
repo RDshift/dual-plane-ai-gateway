@@ -22,8 +22,7 @@ dist/
 build/
 
 # Test Reports & Local Toolchains
-artifacts/test_reports/*.json
-artifacts/test_reports/*.xml
-artifacts/test_reports/*.log
+artifacts/*
+!artifacts/test_reports/
 !artifacts/test_reports/.gitkeep
 .toolchain/

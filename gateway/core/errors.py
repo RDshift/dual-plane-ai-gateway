@@ -44,7 +44,10 @@ def build_jsonrpc_error(
         id=request_id,
         error=JsonRpcErrorObject(code=code, message=message, data=data),
     )
-    return resp.model_dump(exclude_none=True)
+    payload = resp.model_dump()
+    if payload["error"].get("data") is None:
+        del payload["error"]["data"]
+    return payload
 
 
 def build_gateway_error(

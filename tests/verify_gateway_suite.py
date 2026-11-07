@@ -1,3 +1,9 @@
+"""Single-command verification gate: runs the pytest suite and writes JUnit + JSON summaries.
+
+Interface: python3 tests/verify_gateway_suite.py [extra pytest args]. Exit code is the pytest exit code.
+Dependencies: pytest, pyproject.toml [tool.pytest.ini_options].
+"""
+
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -8,6 +14,9 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ARTIFACTS_DIR = PROJECT_ROOT / "artifacts" / "test_reports"
 
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 
 def run_suite(extra_args: list[str] | None = None) -> int:
     ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -15,6 +24,9 @@ def run_suite(extra_args: list[str] | None = None) -> int:
     summary_json_path = ARTIFACTS_DIR / "latest_summary.json"
 
     args = [
+        f"--rootdir={PROJECT_ROOT}",
+        "-c",
+        str(PROJECT_ROOT / "pyproject.toml"),
         "-v",
         "--tb=short",
         f"--junitxml={junit_xml_path}",

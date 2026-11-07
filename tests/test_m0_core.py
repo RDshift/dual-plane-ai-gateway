@@ -6,7 +6,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from gateway.core.config import settings
-from tests.conftest import gateway_client, isolated_sqlite_path
 from gateway.core.errors import (
     JSONRPC_INVALID_PARAMS,
     MCP_UNAUTHORIZED_TOOL_CALL,
