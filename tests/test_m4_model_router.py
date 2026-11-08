@@ -229,6 +229,23 @@ async def test_limiter_concurrent_consumers_never_over_allocate(isolated_sqlite_
         await limiter.close()
 
 
+async def test_limiter_state_persists_across_restarts(isolated_sqlite_path: Path) -> None:
+    first = await _open_limiter(isolated_sqlite_path)
+    try:
+        decision = await first.consume(TENANT_A, 20000)
+        assert decision.allowed is True
+    finally:
+        await first.close()
+    second = await _open_limiter(isolated_sqlite_path)
+    try:
+        decision = await second.consume(TENANT_A, 10000)
+        assert decision.allowed is True
+        assert decision.remaining == 20000
+        assert await second.window_usage(TENANT_A) == 30000
+    finally:
+        await second.close()
+
+
 async def test_limiter_close_is_idempotent_and_guards_consume(isolated_sqlite_path: Path) -> None:
     limiter = await _open_limiter(isolated_sqlite_path)
     await limiter.close()
@@ -357,7 +374,9 @@ async def test_http_upstream_failover_over_mock_transport() -> None:
 def test_http_missing_api_key_returns_401(gateway_client: TestClient) -> None:
     response = gateway_client.post(CHAT_COMPLETIONS_PATH, json=_chat_body())
     assert response.status_code == 401
-    assert response.json()["error"]["code"] == "unauthorized"
+    assert response.headers["WWW-Authenticate"] == 'Bearer realm="model-plane"'
+    assert response.headers["X-Request-Id"]
+    assert response.json()["error"]["code"] == "authentication_required"
 
 
 def test_http_invalid_body_returns_400(gateway_client: TestClient) -> None:

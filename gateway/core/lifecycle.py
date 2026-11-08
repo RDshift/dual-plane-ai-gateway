@@ -6,7 +6,7 @@ from collections.abc import Callable, Coroutine
 from typing import Any
 from gateway.core.logging import configure_stderr_logging
 
-logger = configure_stderr_logging(logger_name="quilr.lifecycle")
+logger = configure_stderr_logging(logger_name="dual_plane.lifecycle")
 
 
 class LifecycleManager:

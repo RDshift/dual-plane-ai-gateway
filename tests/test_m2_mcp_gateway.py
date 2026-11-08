@@ -8,6 +8,13 @@ Dependencies: tests.conftest fixtures, gateway.core.config and
 gateway.mcp_plane.stdio_bridge.
 """
 
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from typing import Any
 
 import pytest
@@ -16,6 +23,7 @@ from fastapi.testclient import TestClient
 from gateway.core.config import settings
 from gateway.core.errors import (
     JSONRPC_INVALID_PARAMS,
+    JSONRPC_AUTH_REQUIRED,
     MCP_UNAUTHORIZED_TOOL_CALL,
 )
 from gateway.mcp_plane.stdio_bridge import stdio_bridge
@@ -30,7 +38,9 @@ SAMPLE_CUSTOMER_ARGS = {"customer_id": "CUST-10001"}
 SAMPLE_BAD_CUSTOMER_ARGS = {"customer_id": "CUST-BAD"}
 SAMPLE_ADMIN_ARGS = {"target_service": "gateway_auth"}
 BLOCKED_MESSAGE = "Unauthorized Tool Call"
-MISSING_TOKEN_MESSAGE = "Unauthorized: Missing or invalid Bearer token."
+MISSING_TOKEN_MESSAGE = "Authentication required: missing, malformed, or invalid Bearer token."
+REQUEST_ID_HEADER = "X-Request-Id"
+WWW_AUTHENTICATE_HEADER = "WWW-Authenticate"
 
 
 def _token_for_role(role: str) -> str:
@@ -57,11 +67,12 @@ def _post(
     method: str,
     params: dict[str, Any] | None = None,
     request_id: int = 1,
+    extra_headers: dict[str, str] | None = None,
 ):
     return client.post(
         MCP_PATH,
         json=_rpc(method, params, request_id),
-        headers=_headers(role),
+        headers={**_headers(role), **(extra_headers or {})},
     )
 
 
@@ -81,17 +92,27 @@ def _call_tool(
     )
 
 
-def test_missing_bearer_header_returns_401(gateway_client: TestClient) -> None:
-    response = gateway_client.post(MCP_PATH, json=_rpc("tools/list"))
+def _assert_unauthenticated(response: Any, rpc_id: Any) -> None:
     assert response.status_code == 401
-    error = response.json()["error"]
-    assert error["code"] == MCP_UNAUTHORIZED_TOOL_CALL
-    assert error["message"] == MISSING_TOKEN_MESSAGE
+    assert response.headers[WWW_AUTHENTICATE_HEADER] == 'Bearer realm="mcp-plane"'
+    assert response.headers[REQUEST_ID_HEADER]
+    body = response.json()
+    assert body["jsonrpc"] == "2.0"
+    assert body["id"] == rpc_id
+    assert body["error"]["code"] == JSONRPC_AUTH_REQUIRED
+    assert body["error"]["message"] == MISSING_TOKEN_MESSAGE
+
+
+def test_missing_bearer_header_returns_401(gateway_client: TestClient) -> None:
+    before = stdio_bridge.downstream_call_count
+    response = gateway_client.post(MCP_PATH, json=_rpc("tools/list", request_id=11))
+    _assert_unauthenticated(response, 11)
+    assert stdio_bridge.downstream_call_count == before
 
 
 @pytest.mark.parametrize(
     "header_value",
-    ["Bearer not-a-real-token", "Bearer ", "Basic dXNlcjpwYXNz", "tok_viewer_live_3c4d5e"],
+    ["Basic abc", "Bearer ", "Bearer unknown_token_xyz", "tok_viewer_live_3c4d5e"],
 )
 def test_invalid_bearer_header_returns_401(
     gateway_client: TestClient, header_value: str
@@ -99,12 +120,29 @@ def test_invalid_bearer_header_returns_401(
     before = stdio_bridge.downstream_call_count
     response = gateway_client.post(
         MCP_PATH,
-        json=_rpc("tools/list"),
+        json=_rpc("tools/list", request_id=12),
         headers={"Authorization": header_value},
     )
-    assert response.status_code == 401
-    assert response.json()["error"]["code"] == MCP_UNAUTHORIZED_TOOL_CALL
+    _assert_unauthenticated(response, 12)
     assert stdio_bridge.downstream_call_count == before
+
+
+def test_unauthenticated_with_unparseable_body_uses_null_id(gateway_client: TestClient) -> None:
+    response = gateway_client.post(
+        MCP_PATH, content=b"{not json", headers={"Content-Type": "application/json"}
+    )
+    _assert_unauthenticated(response, None)
+
+
+def test_request_id_header_is_echoed_or_generated(gateway_client: TestClient) -> None:
+    echoed = _post(
+        gateway_client, "viewer", "tools/list", request_id=13, extra_headers={REQUEST_ID_HEADER: "trace-abc"}
+    )
+    assert echoed.status_code == 200
+    assert echoed.headers[REQUEST_ID_HEADER] == "trace-abc"
+    generated = _post(gateway_client, "viewer", "tools/list", request_id=14)
+    assert generated.status_code == 200
+    assert len(generated.headers[REQUEST_ID_HEADER]) == 32
 
 
 def test_viewer_tools_list_succeeds(gateway_client: TestClient) -> None:
@@ -139,6 +177,8 @@ def test_viewer_blocked_from_admin_tool_without_downstream_call(
     assert body["id"] == 11
     assert body["error"]["code"] == MCP_UNAUTHORIZED_TOOL_CALL
     assert body["error"]["message"] == BLOCKED_MESSAGE
+    assert response.headers[REQUEST_ID_HEADER]
+    assert WWW_AUTHENTICATE_HEADER not in response.headers
     assert stdio_bridge.downstream_call_count == before
 
 
@@ -189,3 +229,9 @@ def test_notification_is_acknowledged_without_downstream_call(
     )
     assert response.status_code == 202
     assert stdio_bridge.downstream_call_count == before
+
+
+if __name__ == "__main__":
+    from tests.conftest import run_module_tests
+
+    raise SystemExit(run_module_tests(__file__))

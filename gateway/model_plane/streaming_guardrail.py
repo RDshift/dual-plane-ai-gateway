@@ -6,19 +6,28 @@ wraps any async iterable of text deltas and yields OpenAI-style SSE frames with
 emails, US SSNs and 16-digit card numbers replaced by REDACTION_TOKEN.
 
 Boundary handling: only the trailing run of characters that could still be the
-prefix of an incomplete match is held back (bounded by max_holdback_chars), so
-split-token PII is caught without buffering the response and safe text is
-forwarded as soon as it arrives.
+prefix of an incomplete match is held back, so split-token PII is caught
+without buffering the response and safe text is forwarded as soon as it
+arrives.
 
-Dependencies: standard library only.
+Qualified invariant: no match whose length is <= max_holdback_chars can
+straddle the flush boundary. The default cap is 256 characters, taken from
+settings.stream_guardrail_max_holdback_chars, which covers the RFC 5321
+maximum email length of 254 characters as well as every SSN and card form.
+Above max_holdback_chars contiguous token characters the oldest prefix is
+released FIFO, guaranteeing O(max_holdback_chars) memory per stream.
+
+Dependencies: standard library, gateway.core.config.
 """
 
 import json
 import re
 from collections.abc import AsyncIterable, AsyncIterator
 
+from gateway.core.config import settings
+
 REDACTION_TOKEN = "[REDACTED]"
-DEFAULT_MAX_HOLDBACK_CHARS = 128
+DEFAULT_MAX_HOLDBACK_CHARS = 256
 SSE_DONE_FRAME = "data: [DONE]\n\n"
 
 EMAIL_PATTERN = r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"
@@ -63,13 +72,26 @@ def _unsafe_tail_length(text: str, limit: int) -> int:
     return length
 
 
-class StreamingPiiGuardrail:
-    """Incremental redactor with a bounded rolling-tail holdback window."""
+def resolve_max_holdback_chars(explicit: int | None = None) -> int:
+    """Explicit argument wins; otherwise the configured cap; otherwise the module default."""
+    if explicit is not None:
+        return int(explicit)
+    configured = getattr(settings, "stream_guardrail_max_holdback_chars", None)
+    return int(configured) if configured else DEFAULT_MAX_HOLDBACK_CHARS
 
-    def __init__(self, max_holdback_chars: int = DEFAULT_MAX_HOLDBACK_CHARS) -> None:
-        if max_holdback_chars <= 0:
+
+class StreamingPiiGuardrail:
+    """Incremental redactor with a bounded rolling-tail holdback window.
+
+    Any PII match of length <= max_holdback_chars is redacted exactly even when
+    split across chunks; longer token runs are released FIFO from the front.
+    """
+
+    def __init__(self, max_holdback_chars: int | None = None) -> None:
+        resolved = resolve_max_holdback_chars(max_holdback_chars)
+        if resolved <= 0:
             raise ValueError("max_holdback_chars must be positive")
-        self.max_holdback_chars = max_holdback_chars
+        self.max_holdback_chars = resolved
         self._pending = ""
 
     @property
@@ -95,7 +117,7 @@ class StreamingPiiGuardrail:
 
 async def guard_text_stream(
     deltas: AsyncIterable[str],
-    max_holdback_chars: int = DEFAULT_MAX_HOLDBACK_CHARS,
+    max_holdback_chars: int | None = None,
 ) -> AsyncIterator[str]:
     """Yield redacted plain-text chunks as soon as each becomes safe."""
     guard = StreamingPiiGuardrail(max_holdback_chars)
@@ -110,7 +132,7 @@ async def guard_text_stream(
 
 async def guard_stream(
     deltas: AsyncIterable[str],
-    max_holdback_chars: int = DEFAULT_MAX_HOLDBACK_CHARS,
+    max_holdback_chars: int | None = None,
 ) -> AsyncIterator[str]:
     """Yield SSE frames for redacted content, terminated by the [DONE] frame."""
     async for chunk in guard_text_stream(deltas, max_holdback_chars):

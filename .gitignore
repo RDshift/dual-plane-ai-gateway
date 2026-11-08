@@ -10,19 +10,25 @@ __pycache__/
 venv/
 env/
 .env
+
+# Operating System & IDE Files
 .DS_Store
 
 # Databases
 *.db
 *.db-shm
 *.db-wal
+!data/.gitkeep
 
 # Build & Distribution
-dist/
 build/
+dist/
 
-# Test Reports & Local Toolchains
-artifacts/*
+# Artifacts & Local Toolchains
+artifacts/
 !artifacts/test_reports/
 !artifacts/test_reports/.gitkeep
 .toolchain/
+
+# Patches & Temporary Files
+*.patch

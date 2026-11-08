@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Any, Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 SERVER_PATH = PROJECT_ROOT / "servers" / "customer_service_mcp.py"
 SERVER_MODULE_NAME = "customer_service_mcp_under_test"
 
@@ -197,7 +199,7 @@ class SchemaValidationTests(unittest.TestCase):
 
 class DispatcherTests(unittest.TestCase):
     def setUp(self) -> None:
-        logger = logging.getLogger("quilr.test.m1")
+        logger = logging.getLogger("dual_plane.test.m1")
         logger.addHandler(logging.NullHandler())
         logger.propagate = False
         self.server = SERVER.McpServer(SERVER.build_tool_registry(), logger)

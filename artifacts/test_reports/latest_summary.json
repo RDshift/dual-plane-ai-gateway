@@ -1,8 +1,21 @@
 {
-  "timestamp_utc": "2026-11-07T21:28:03.089250+00:00",
+  "timestamp_utc": "2026-11-08T20:38:14.731911+00:00",
   "platform": "macOS-27.2-arm64-arm-64bit",
   "python_version": "3.12.16",
+  "python_implementation": "CPython",
   "exit_code": 0,
   "status": "PASSED",
-  "junit_report": "artifacts/test_reports/latest_junit.xml"
+  "wall_clock_s": 2.456,
+  "counts": {
+    "total": 113,
+    "passed": 113,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "subtests_passed": 0,
+    "subtests_failed": 0,
+    "duration_s": 2.106
+  },
+  "junit_report": "artifacts/test_reports/latest_junit.xml",
+  "summary_report": "artifacts/test_reports/latest_summary.json"
 }

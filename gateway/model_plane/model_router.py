@@ -52,7 +52,9 @@ HEADER_RETRY_AFTER = "Retry-After"
 HEADER_REQUEST_ID = "X-Request-Id"
 SSE_MEDIA_TYPE = "text/event-stream"
 
-MSG_UNAUTHORIZED = "Unauthorized: Missing or invalid API key."
+HEADER_WWW_AUTHENTICATE = "WWW-Authenticate"
+WWW_AUTHENTICATE_VALUE = 'Bearer realm="model-plane"'
+MSG_UNAUTHORIZED = "Missing or invalid API key."
 MSG_INVALID_REQUEST = "Invalid request body."
 MSG_RATE_LIMITED = "Rate limit exceeded for this API key."
 
@@ -175,7 +177,14 @@ async def chat_completions(
     request_id = uuid.uuid4().hex
     api_key = _resolve_api_key(authorization, x_api_key)
     if api_key is None:
-        return _error("unauthorized", MSG_UNAUTHORIZED, HTTP_UNAUTHORIZED, request_id)
+        logger.warning("event=model_auth_failed request_id=%s", request_id)
+        return _error(
+            "authentication_required",
+            MSG_UNAUTHORIZED,
+            HTTP_UNAUTHORIZED,
+            request_id,
+            headers={HEADER_WWW_AUTHENTICATE: WWW_AUTHENTICATE_VALUE},
+        )
 
     try:
         body = await request.json()

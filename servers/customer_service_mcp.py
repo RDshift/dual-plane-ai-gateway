@@ -439,7 +439,7 @@ async def run_stdio_server(server: McpServer, logger: logging.Logger) -> None:
 
 def main() -> None:
     """CLI entrypoint. All diagnostics are bound to stderr."""
-    logger = configure_stderr_logging(level=settings.log_level, logger_name="quilr.mcp_server")
+    logger = configure_stderr_logging(level=settings.log_level, logger_name="dual_plane.mcp_server")
     server = McpServer(build_tool_registry(), logger, build_admin_tool_registry())
     try:
         asyncio.run(run_stdio_server(server, logger))

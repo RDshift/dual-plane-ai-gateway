@@ -1,6 +1,6 @@
 """Shared pytest fixtures and test primitives.
 
-Interface: isolated_sqlite_path (volatile DB path), gateway_client (lifespan
+Interface: isolated_sqlite_path (per-test temporary DB path), gateway_client (lifespan
 bound TestClient), model_plane (component reset around each model plane test).
 Also makes direct execution safe: python3 tests/<file>.py resolves the project
 root and applies the same warning filters as pyproject.toml.
@@ -56,7 +56,7 @@ def run_module_tests(module_file: str) -> int:
 
 @pytest.fixture()
 def isolated_sqlite_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Provide an isolated, volatile SQLite path for tests."""
+    """Provide an isolated per-test SQLite path under tmp_path."""
     db_file = tmp_path / "test_gateway_ratelimit.db"
     monkeypatch.setattr(settings, "sqlite_db_path", str(db_file))
     return db_file

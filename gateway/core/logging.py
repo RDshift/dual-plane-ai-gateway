@@ -22,7 +22,7 @@ class StderrJsonFormatter(logging.Formatter):
         return json.dumps(payload, separators=(",", ":"))
 
 
-def configure_stderr_logging(level: str = "INFO", logger_name: str = "quilr") -> logging.Logger:
+def configure_stderr_logging(level: str = "INFO", logger_name: str = "dual_plane") -> logging.Logger:
     """Configure unbuffered structured logging exclusively on stderr."""
     logger = logging.getLogger(logger_name)
     logger.setLevel(getattr(logging, level.upper(), logging.INFO))
